@@ -58,6 +58,7 @@ const GFXfont *fonts[] = {
 #include "Esp.h"
 #include "board_def.h"
 #include <Button2.h>
+#include <math.h>
 
 #define FILESYSTEM SPIFFS
 
@@ -719,11 +720,20 @@ int getLineHeight(const GFXfont *font = NULL)
   return height;
 }
 
+
+const boolean displayPageNumber = false;
 void renderStatus() {
     display.drawFastHLine(0,248-13,SCREEN_WIDTH, GxEPD_BLACK);
     float battery_voltage = 6.6f * analogRead(BATTERY_ADC) / 4095; // Voltage divider halfs the voltage so saturation is 6.6
     displayText(String(battery_voltage)+"v", 248, LEFT_ALIGNMENT);
-    displayText(String(1+(currentBookInfo.position/PAGE_SIZE))+":" + String(1+(file2.size()/PAGE_SIZE)), 248, RIGHT_ALIGNMENT);
+    
+    String progress = "";
+    if(displayPageNumber){
+        progress = String(1+(currentBookInfo.position/PAGE_SIZE))+":" + String(1+(file2.size()/PAGE_SIZE));
+    } else {
+        progress = String(int(round(100.0 / file2.size() * currentBookInfo.position))) + "%";
+    }
+    displayText(progress, 248, RIGHT_ALIGNMENT);
 }
 
 void persistBookInformation(BookInfo& info) {
@@ -742,6 +752,93 @@ BookInfo retriveBookInformation() {
     return {ret};
 }
 
+// get string length in pixels
+// set text font prior to calling this
+int getStringLength(String str, int strlength = 0)
+{
+ // char buff[1024];
+  int16_t x, y;
+  uint16_t w, h;
+  display.setTextWrap(false);
+  display.getTextBounds(str, 0, 0, &x, &y, &w, &h);
+  return(w);  
+}
+ 
+// word wrap routine
+// first time send string to wrap
+// 2nd and additional times: use empty string
+// returns substring of wrapped text.
+String wrapWord(const char *str, int linesize)
+{
+  static char buff[1024];
+  int linestart = 0;
+  static int lineend = 0;
+  static int bufflen = 0;
+  if(strlen(str) == 0)
+  {
+    // additional line from original string
+    linestart = lineend + 1;
+    lineend = bufflen;
+    //Serial.println("existing string to wrap, starting at position " + String(linestart) + ": " + String(&buff[linestart]));
+  }
+  else
+  {
+ //   Serial.println("new string to wrap: " + String(str));
+    memset(buff,0,sizeof(buff));
+    // new string to wrap
+    linestart = 0;
+    strcpy(buff,str);
+    bufflen = lineend = strlen(buff);
+  }
+  uint16_t w = 0;
+  int lastwordpos = linestart;
+  int wordpos = linestart + 1;
+  while(true)
+  {
+    while(buff[wordpos] == ' ' && wordpos < bufflen)
+      wordpos++;
+    while(isAlphaNumeric(buff[wordpos]) && wordpos < bufflen)
+      wordpos++;
+    char temp = buff[wordpos];
+    if(wordpos < bufflen)
+      buff[wordpos] = '\0';     // Insert a null for measuring step
+    uint16_t lastw = w;
+    w = getStringLength(&buff[linestart]);
+   // Serial.println(w);
+    if(wordpos < bufflen)
+      buff[wordpos] = temp;      // repair the cut
+    /*if(w > linesize * 1.25 && lastw < linesize * 0.85){
+      temp = buff[wordpos]; 
+      buff[wordpos] = '\0';
+      lineend = wordpos;
+      String copy = String(&buff[linestart]);
+      buff[wordpos] = temp;
+      int i = 0;
+      while(w > linesize){
+        copy[wordpos-i++] = '\0';
+        w = getStringLength(copy);
+      }
+      lineend=(wordpos-i);
+      return copy + '-';
+    }*/
+    if(w > linesize)
+    {
+      buff[lastwordpos] = '\0';
+      lineend = lastwordpos;
+      return &buff[linestart];
+    }
+    else if(wordpos >= bufflen)
+    {
+      // first word too long or end of string, send it anyway
+      buff[wordpos] = '\0';
+      lineend = wordpos;
+      return &buff[linestart];
+    }
+    lastwordpos = wordpos;
+    wordpos++;
+  }
+}
+
 void renderPage() {
     file2.seek(currentBookInfo.position);
     char text[PAGE_SIZE+1] = {0};
@@ -750,8 +847,16 @@ void renderPage() {
     }
     Serial.println(text);
     int length = getMaxTextLength(text);
-    text[length] = 0;
-    Serial.println(text);
+  //  text[length] = 0;
+
+    Serial.println("WRAPPING");
+      String line = wrapWord(text, SCREEN_WIDTH);
+ 
+  while(line.length() > 0)
+  {
+    Serial.println(line);
+    line = wrapWord("",SCREEN_WIDTH);
+  }
 
     display.eraseDisplay(true);
     display.fillScreen(GxEPD_WHITE);
