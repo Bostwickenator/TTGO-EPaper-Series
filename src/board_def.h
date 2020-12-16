@@ -2,7 +2,7 @@
 #define TTGO_T5_2_0 0
 #define TTGO_T5_2_1 0
 #define TTGO_T5_2_2 0
-#define TTGO_T5_2_3 0
+#define TTGO_T5_2_3 1
 #define TTGO_T5_2_4 0
 #define TTGO_T5_2_8 0   //! Silk screen marking T5_V28_27
 
@@ -72,8 +72,10 @@
 
 #elif (TTGO_T5_2_0) || (TTGO_T5_2_3)
 // #include <GxGDE0213B1/GxGDE0213B1.h>      // 2.13" b/w
-// #include <GxGDE0213B72/GxGDE0213B72.h>      // 2.13" b/w     GxGDE0213B1 升级版本
+//#include <GxGDE0213B72/GxGDE0213B72.h>      // 2.13" b/w     GxGDE0213B1 升级版本
 #include <GxGDE0213B72B/GxGDE0213B72B.h> // 2.13" b/w           GxGDE0213B72 升级版本 默认LilyGO的出厂屏幕都是这种
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 250
 
 #define SPI_MOSI 23
 #define SPI_MISO -1
@@ -96,6 +98,8 @@
     }
 
 #define SPEAKER_OUT -1
+
+#define BATTERY_ADC 35
 
 #elif TTGO_T5_2_2
 #include <GxGDEH029A1/GxGDEH029A1.h> // 2.9" b/w

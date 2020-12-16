@@ -20,12 +20,12 @@
 // #define DEFALUT_FONT  FreeMonoBoldOblique9pt7b
 // #define DEFALUT_FONT FreeMonoBold9pt7b
 // #define DEFALUT_FONT FreeMonoOblique9pt7b
-#define DEFALUT_FONT FreeSans9pt7b
+//#define DEFALUT_FONT FreeSans9pt7b
 // #define DEFALUT_FONT FreeSansBold9pt7b
 // #define DEFALUT_FONT FreeSansBoldOblique9pt7b
 // #define DEFALUT_FONT FreeSansOblique9pt7b
 // #define DEFALUT_FONT FreeSerif9pt7b
-// #define DEFALUT_FONT FreeSerifBold9pt7b
+ #define DEFALUT_FONT FreeSerifBold9pt7b
 // #define DEFALUT_FONT FreeSerifBoldItalic9pt7b
 // #define DEFALUT_FONT FreeSerifItalic9pt7b
 
@@ -74,10 +74,19 @@ const GFXfont *fonts[] = {
 #define IP5306_ADDR 0X75
 #define IP5306_REG_SYS_CTL0 0x00
 
+class BookInfo {
+    public:
+        int position;
+        int nextPagePosition;
+};
+
 void showMianPage(void);
 void showQrPage(void);
 void displayInit(void);
 void drawBitmap(const char *filename, int16_t x, int16_t y, bool with_color);
+void renderPage();
+void copyFile(String filepath);
+BookInfo retriveBookInformation();
 
 typedef struct {
     char name[32];
@@ -110,6 +119,14 @@ const char *path[2] = {DEFALUT_AVATAR_BMP, DEFALUT_QR_CODE_BMP};
 Button2 *pBtns = nullptr;
 uint8_t g_btns[] = BUTTONS_MAP;
 
+
+File file2;
+BookInfo currentBookInfo = BookInfo();
+
+
+int PAGE_SIZE = 140;
+
+
 void button_handle(uint8_t gpio)
 {
     switch (gpio) {
@@ -137,14 +154,8 @@ void button_handle(uint8_t gpio)
 
 #if BUTTON_3
     case BUTTON_3: {
-        static bool index = 1;
-        if (!index) {
-            showMianPage();
-            index = true;
-        } else {
-            showQrPage();
-            index = false;
-        }
+        currentBookInfo.position = currentBookInfo.nextPagePosition;
+        renderPage();
     }
     break;
 #endif
@@ -180,6 +191,26 @@ void button_loop()
     }
 }
 
+/**
+ * Returns the maximum number of characters which can fit on screen from this string.
+ */
+int getMaxTextLength(const String& str){
+    int MAX_HEIGHT = 200;
+    String copy = ""+str;
+    int16_t x1, y1;
+    uint16_t w, h;
+    display.getTextBounds(copy, 0, 0, &x1, &y1, &w, &h);
+    int i = 0;
+    while (h > MAX_HEIGHT) {
+        copy[str.length() - i++] = 0;
+        display.getTextBounds(copy, 0, 0, &x1, &y1, &w, &h);
+    }
+    // Now back up to a word boundry
+    while(copy[str.length() - i] != ' ')
+        i++;
+    return str.length() - i;
+}
+
 void displayText(const String &str, int16_t y, uint8_t alignment)
 {
     int16_t x = 0;
@@ -187,7 +218,7 @@ void displayText(const String &str, int16_t y, uint8_t alignment)
     uint16_t w, h;
     display.setCursor(x, y);
     display.getTextBounds(str, x, y, &x1, &y1, &w, &h);
-
+    Serial.println("text height: " + String(h));
     switch (alignment) {
     case RIGHT_ALIGNMENT:
         display.setCursor(display.width() - w - x1, y);
@@ -408,29 +439,6 @@ void WebServerStart(void)
     server.begin();
 }
 
-void showMianPage(void)
-{
-    displayInit();
-    display.fillScreen(GxEPD_WHITE);
-    drawBitmap(DEFALUT_AVATAR_BMP, 10, 10, true);
-    displayText(String(info.name), 30, RIGHT_ALIGNMENT);
-    displayText(String(info.company), 50, RIGHT_ALIGNMENT);
-    displayText(String(info.email), 70, RIGHT_ALIGNMENT);
-    displayText(String(info.link), 90, RIGHT_ALIGNMENT);
-    display.update();
-}
-
-void showQrPage(void)
-{
-    displayInit();
-    display.fillScreen(GxEPD_WHITE);
-    drawBitmap(DEFALUT_QR_CODE_BMP, 10, 10, true);
-    displayText(String(info.tel), 50, RIGHT_ALIGNMENT);
-    displayText(String(info.email), 70, RIGHT_ALIGNMENT);
-    displayText(String(info.address), 90, RIGHT_ALIGNMENT);
-    display.update();
-}
-
 uint16_t read16(File &f)
 {
     // BMP data is stored little-endian, same as Arduino.
@@ -627,31 +635,11 @@ void displayInit(void)
     }
     isInit = true;
     display.init();
-    display.setRotation(1);
+    display.setRotation(0);
     display.eraseDisplay();
     display.setTextColor(GxEPD_BLACK);
     display.setFont(&DEFALUT_FONT);
     display.setTextSize(0);
-
-    if (SDCARD_SS > 0) {
-        display.fillScreen(GxEPD_WHITE);
-#if !(TTGO_T5_2_2)
-        SPIClass sdSPI(VSPI);
-        sdSPI.begin(SDCARD_CLK, SDCARD_MISO, SDCARD_MOSI, SDCARD_SS);
-        if (!SD.begin(SDCARD_SS, sdSPI))
-#else
-        if (!SD.begin(SDCARD_SS))
-#endif
-        {
-            displayText("SDCard MOUNT FAIL", 50, CENTER_ALIGNMENT);
-        } else {
-            displayText("SDCard MOUNT PASS", 50, CENTER_ALIGNMENT);
-            uint32_t cardSize = SD.cardSize() / (1024 * 1024);
-            displayText("SDCard Size: " + String(cardSize) + "MB", 70, CENTER_ALIGNMENT);
-        }
-        display.update();
-        delay(2000);
-    }
 }
 
 bool setPowerBoostKeepOn(int en)
@@ -665,6 +653,8 @@ bool setPowerBoostKeepOn(int en)
     return Wire.endTransmission() == 0;
 }
 
+String BOOK_FILE = "/test.txt";
+
 void setup()
 {
     Serial.begin(115200);
@@ -676,67 +666,90 @@ void setup()
     Serial.printf("Power KeepUp %s\n", ret ? "PASS" : "FAIL");
 #endif
 
-// It is only necessary to turn on the power amplifier power supply on the T5_V24 board.
-#ifdef AMP_POWER_CTRL
-    pinMode(AMP_POWER_CTRL, OUTPUT);
-    digitalWrite(AMP_POWER_CTRL, HIGH);
-#endif
-
-#ifdef DAC_MAX98357
-    AudioGeneratorMP3 *mp3;
-    AudioFileSourcePROGMEM *file;
-    AudioOutputI2S *out;
-    AudioFileSourceID3 *id3;
-
-    file = new AudioFileSourcePROGMEM(image, sizeof(image));
-    id3 = new AudioFileSourceID3(file);
-    out = new AudioOutputI2S();
-    out->SetPinout(IIS_BCK, IIS_WS, IIS_DOUT);
-    mp3 = new AudioGeneratorMP3();
-    mp3->begin(id3, out);
-    while (1) {
-        if (mp3->isRunning()) {
-            if (!mp3->loop())
-                mp3->stop();
-        } else {
-            Serial.printf("MP3 done\n");
-            break;
-        }
-    }
-#endif
-
-    if (SPEAKER_OUT > 0) {
-        ledcSetup(CHANNEL_0, 1000, 8);
-        ledcAttachPin(SPEAKER_OUT, CHANNEL_0);
-        int i = 3;
-        while (i--) {
-            ledcWriteTone(CHANNEL_0, 1000);
-            delay(200);
-            ledcWriteTone(CHANNEL_0, 0);
-        }
-    }
     SPI.begin(SPI_CLK, SPI_MISO, SPI_MOSI, -1);
-    if (!FILESYSTEM.begin()) {
-        Serial.println("FILESYSTEM is not database");
-        Serial.println("Please use Arduino ESP32 Sketch data Upload files");
-        while (1) {
-            delay(1000);
-        }
-    }
-    if (!loadBadgeInfo(&info)) {
-        loadDefaultInfo();
-    }
+    
+    button_init();
+
+    SPIClass sdSPI(VSPI);
+    sdSPI.begin(SDCARD_CLK, SDCARD_MISO, SDCARD_MOSI, SDCARD_SS);
+    SPIFFS.begin(true);
+    displayInit();
+    if (!SD.begin(SDCARD_SS, sdSPI)) {
+        Serial.println("No SD Card");
+    } else {
+        displayText("Copying Books", 100, CENTER_ALIGNMENT);
+        display.updateWindow(0,0,128,250);
+        copyFile(BOOK_FILE);
+    }        
+    file2 = SPIFFS.open(BOOK_FILE);
 
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED) {
-        showMianPage();
+        currentBookInfo = retriveBookInformation();
+        renderPage();
     }
 
-    WebServerStart();
+    //  WebServerStart();
 
-    button_init();
+}
+
+void copyFile(String filepath) {
+
+    File sourceFile = SD.open(filepath);
+    File destFile = SPIFFS.open(filepath, FILE_WRITE);
+    static uint8_t buf[512];
+    while( sourceFile.read( buf, 512) ) {
+        destFile.write( buf, 512 );
+    }
+    destFile.close();
+    sourceFile.close();
+}
+
+void renderStatus() {
+    display.drawFastHLine(0,249,SCREEN_WIDTH);
+    float battery_voltage = 6.6f * analogRead(BATTERY_ADC) / 4095; // Voltage divider halfs the voltage so saturation is 6.6
+    displayText(String(battery_voltage)+"v", 250, LEFT_ALIGNMENT);
+    displayText(String(1+(currentBookInfo.position/PAGE_SIZE))+":" + String(1+(file2.size()/PAGE_SIZE)), 250, RIGHT_ALIGNMENT);
+}
+
+void persistBookInformation(BookInfo& info) {
+    File bookDataFile = SPIFFS.open(BOOK_FILE + ".data", FILE_WRITE);
+    bookDataFile.print(String(info.position));
+    bookDataFile.close();
+}
+
+BookInfo retriveBookInformation() {
+    File bookDataFile = SPIFFS.open(BOOK_FILE + ".data", FILE_READ);
+    BookInfo ret = BookInfo();
+    if(!bookDataFile)
+        return ret;
+    ret.position = bookDataFile.parseInt();
+    bookDataFile.close();
+    return {ret};
+}
+
+void renderPage() {
+    file2.seek(currentBookInfo.position);
+    char text[PAGE_SIZE+1] = {0};
+    for(int i=0;i<PAGE_SIZE;i++){
+        text[i] = file2.read();
+    }
+    Serial.println(text);
+    int length = getMaxTextLength(text);
+    text[length] = 0;
+    Serial.println(text);
+
+    display.eraseDisplay(true);
+    display.fillScreen(GxEPD_WHITE);
+    renderStatus();
+    displayText(text, 15, LEFT_ALIGNMENT);
+    display.updateWindow(0,0,SCREEN_WIDTH,SCREEN_HEIGHT);
+
+    currentBookInfo.nextPagePosition = currentBookInfo.position + length;
+    persistBookInformation(currentBookInfo);
 }
 
 void loop()
 {
+    yield();
     button_loop();
 }
