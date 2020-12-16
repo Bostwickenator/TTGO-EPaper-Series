@@ -704,11 +704,26 @@ void copyFile(String filepath) {
     sourceFile.close();
 }
 
+
+int getLineHeight(const GFXfont *font = NULL)
+{
+  int height;
+  if(font == NULL)
+  {
+    height = 12;
+  }
+  else
+  {
+    height = (uint8_t)pgm_read_byte(&font->yAdvance);
+  }
+  return height;
+}
+
 void renderStatus() {
-    display.drawFastHLine(0,249,SCREEN_WIDTH);
+    display.drawFastHLine(0,248-13,SCREEN_WIDTH, GxEPD_BLACK);
     float battery_voltage = 6.6f * analogRead(BATTERY_ADC) / 4095; // Voltage divider halfs the voltage so saturation is 6.6
-    displayText(String(battery_voltage)+"v", 250, LEFT_ALIGNMENT);
-    displayText(String(1+(currentBookInfo.position/PAGE_SIZE))+":" + String(1+(file2.size()/PAGE_SIZE)), 250, RIGHT_ALIGNMENT);
+    displayText(String(battery_voltage)+"v", 248, LEFT_ALIGNMENT);
+    displayText(String(1+(currentBookInfo.position/PAGE_SIZE))+":" + String(1+(file2.size()/PAGE_SIZE)), 248, RIGHT_ALIGNMENT);
 }
 
 void persistBookInformation(BookInfo& info) {
