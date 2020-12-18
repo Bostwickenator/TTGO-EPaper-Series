@@ -219,7 +219,7 @@ void displayText(const String &str, int16_t y, uint8_t alignment)
     uint16_t w, h;
     display.setCursor(x, y);
     display.getTextBounds(str, x, y, &x1, &y1, &w, &h);
-    Serial.println("text height: " + String(h));
+  //  Serial.println("text height: " + String(h));
     switch (alignment) {
     case RIGHT_ALIGNMENT:
         display.setCursor(display.width() - w - x1, y);
@@ -756,7 +756,6 @@ BookInfo retriveBookInformation() {
 // set text font prior to calling this
 int getStringLength(String str, int strlength = 0)
 {
- // char buff[1024];
   int16_t x, y;
   uint16_t w, h;
   display.setTextWrap(false);
@@ -776,14 +775,16 @@ String wrapWord(const char *str, int linesize)
   static int bufflen = 0;
   if(strlen(str) == 0)
   {
+    if(lineend == bufflen)
+        return "";
     // additional line from original string
     linestart = lineend + 1;
     lineend = bufflen;
-    //Serial.println("existing string to wrap, starting at position " + String(linestart) + ": " + String(&buff[linestart]));
+    // Serial.println("existing string to wrap, starting at position " + String(linestart) + ": " + String(&buff[linestart]));
   }
   else
   {
- //   Serial.println("new string to wrap: " + String(str));
+    // Serial.println("new string to wrap: " + String(str));
     memset(buff,0,sizeof(buff));
     // new string to wrap
     linestart = 0;
@@ -797,30 +798,40 @@ String wrapWord(const char *str, int linesize)
   {
     while(buff[wordpos] == ' ' && wordpos < bufflen)
       wordpos++;
-    while(isAlphaNumeric(buff[wordpos]) && wordpos < bufflen)
+    while( buff[wordpos] != ' ' /*isAlphaNumeric(buff[wordpos])*/ && wordpos < bufflen)
       wordpos++;
     char temp = buff[wordpos];
-    if(wordpos < bufflen)
+    if(wordpos < bufflen) {
       buff[wordpos] = '\0';     // Insert a null for measuring step
+    }
     uint16_t lastw = w;
     w = getStringLength(&buff[linestart]);
-   // Serial.println(w);
-    if(wordpos < bufflen)
+    // Serial.println(w);
+    if(wordpos < bufflen) {
       buff[wordpos] = temp;      // repair the cut
-    /*if(w > linesize * 1.25 && lastw < linesize * 0.85){
+    }
+    if(w > linesize * 1.05 && lastw < linesize * 0.85){
       temp = buff[wordpos]; 
-      buff[wordpos] = '\0';
+      buff[wordpos] = 0;
       lineend = wordpos;
       String copy = String(&buff[linestart]);
+      int copyLength = copy.length();
       buff[wordpos] = temp;
       int i = 0;
       while(w > linesize){
-        copy[wordpos-i++] = '\0';
+        copy[copyLength-i++] = 0;
+        //Serial.println(copy);
         w = getStringLength(copy);
       }
-      lineend=(wordpos-i);
-      return copy + '-';
-    }*/
+      copy[copyLength-i] = 0; // One more to make room for the -
+      lineend=(wordpos-i-1);
+      int endChar = copy[strlen(&copy[0])-1];
+      Serial.println(endChar);
+      if (endChar !=' ') {
+        return String(&copy[0]) + '-';
+      }
+    w = getStringLength(&buff[linestart]);
+    }
     if(w > linesize)
     {
       buff[lastwordpos] = '\0';
@@ -847,21 +858,31 @@ void renderPage() {
     }
     Serial.println(text);
     int length = getMaxTextLength(text);
-  //  text[length] = 0;
+    // text[length] = 0;
 
     Serial.println("WRAPPING");
-      String line = wrapWord(text, SCREEN_WIDTH);
+    String line = wrapWord(text, 122);
  
-  while(line.length() > 0)
-  {
-    Serial.println(line);
-    line = wrapWord("",SCREEN_WIDTH);
-  }
+    int y = 15;
+
 
     display.eraseDisplay(true);
     display.fillScreen(GxEPD_WHITE);
-    renderStatus();
-    displayText(text, 15, LEFT_ALIGNMENT);
+
+    while((line.length() > 0) && (y==15 || (display.getCursorY() < 220)))
+    {
+        int lastY = y;
+        displayText(line, y, LEFT_ALIGNMENT);
+        Serial.println(line);
+        line = wrapWord("", 122);
+        if(display.getCursorY() != lastY){
+            y = display.getCursorY();
+        } else {
+            y+=getLineHeight(&DEFALUT_FONT);
+        }
+    }
+        renderStatus();
+
     display.updateWindow(0,0,SCREEN_WIDTH,SCREEN_HEIGHT);
 
     currentBookInfo.nextPagePosition = currentBookInfo.position + length;
