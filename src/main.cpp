@@ -15,7 +15,7 @@
 #include <Fonts/FreeSerifBold9pt7b.h>
 #include <Fonts/FreeSerifBoldItalic9pt7b.h>
 #include <Fonts/FreeSerifItalic9pt7b.h>
-
+#include <Fonts/Picopixel.h>
 //#define DEFALUT_FONT  FreeMono9pt7b
 // #define DEFALUT_FONT  FreeMonoBoldOblique9pt7b
 // #define DEFALUT_FONT FreeMonoBold9pt7b
@@ -25,7 +25,7 @@
 // #define DEFALUT_FONT FreeSansBoldOblique9pt7b
 // #define DEFALUT_FONT FreeSansOblique9pt7b
 // #define DEFALUT_FONT FreeSerif9pt7b
- #define DEFALUT_FONT FreeSerifBold9pt7b
+#define DEFALUT_FONT FreeSerifBold9pt7b
 // #define DEFALUT_FONT FreeSerifBoldItalic9pt7b
 // #define DEFALUT_FONT FreeSerifItalic9pt7b
 
@@ -41,8 +41,7 @@ const GFXfont *fonts[] = {
     &FreeSerif9pt7b,
     &FreeSerifBold9pt7b,
     &FreeSerifBoldItalic9pt7b,
-    &FreeSerifItalic9pt7b
-};
+    &FreeSerifItalic9pt7b};
 
 #include <WiFi.h>
 #include <AsyncTCP.h>
@@ -75,10 +74,11 @@ const GFXfont *fonts[] = {
 #define IP5306_ADDR 0X75
 #define IP5306_REG_SYS_CTL0 0x00
 
-class BookInfo {
-    public:
-        int position;
-        int nextPagePosition;
+class BookInfo
+{
+public:
+    int position;
+    int nextPagePosition;
 };
 
 void showMianPage(void);
@@ -89,7 +89,8 @@ void renderPage();
 void copyFile(String filepath);
 BookInfo retriveBookInformation();
 
-typedef struct {
+typedef struct
+{
     char name[32];
     char link[64];
     char tel[64];
@@ -98,7 +99,8 @@ typedef struct {
     char address[128];
 } Badge_Info_t;
 
-typedef enum {
+typedef enum
+{
     RIGHT_ALIGNMENT = 0,
     LEFT_ALIGNMENT,
     CENTER_ALIGNMENT,
@@ -120,41 +122,18 @@ const char *path[2] = {DEFALUT_AVATAR_BMP, DEFALUT_QR_CODE_BMP};
 Button2 *pBtns = nullptr;
 uint8_t g_btns[] = BUTTONS_MAP;
 
-
 File file2;
 BookInfo currentBookInfo = BookInfo();
 
-
 int PAGE_SIZE = 140;
-
 
 void button_handle(uint8_t gpio)
 {
-    switch (gpio) {
-#if BUTTON_1
-    case BUTTON_1: {
-        // esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_1, LOW);
-        esp_sleep_enable_ext1_wakeup(((uint64_t)(((uint64_t)1) << BUTTON_1)), ESP_EXT1_WAKEUP_ALL_LOW);
-        Serial.println("Going to sleep now");
-        delay(2000);
-        esp_deep_sleep_start();
-    }
-    break;
-#endif
-
-#if BUTTON_2
-    case BUTTON_2: {
-        static int i = 0;
-        Serial.printf("Show Num: %d font\n", i);
-        i = ((i + 1) >= sizeof(fonts) / sizeof(fonts[0])) ? 0 : i + 1;
-        display.setFont(fonts[i]);
-        showMianPage();
-    }
-    break;
-#endif
-
+    switch (gpio)
+    {
 #if BUTTON_3
-    case BUTTON_3: {
+    case BUTTON_3:
+    {
         currentBookInfo.position = currentBookInfo.nextPagePosition;
         renderPage();
     }
@@ -167,8 +146,10 @@ void button_handle(uint8_t gpio)
 
 void button_callback(Button2 &b)
 {
-    for (int i = 0; i < sizeof(g_btns) / sizeof(g_btns[0]); ++i) {
-        if (pBtns[i] == b) {
+    for (int i = 0; i < sizeof(g_btns) / sizeof(g_btns[0]); ++i)
+    {
+        if (pBtns[i] == b)
+        {
             Serial.printf("btn: %u press\n", pBtns[i].getAttachPin());
             button_handle(pBtns[i].getAttachPin());
         }
@@ -179,7 +160,8 @@ void button_init()
 {
     uint8_t args = sizeof(g_btns) / sizeof(g_btns[0]);
     pBtns = new Button2[args];
-    for (int i = 0; i < args; ++i) {
+    for (int i = 0; i < args; ++i)
+    {
         pBtns[i] = Button2(g_btns[i]);
         pBtns[i].setPressedHandler(button_callback);
     }
@@ -187,7 +169,8 @@ void button_init()
 
 void button_loop()
 {
-    for (int i = 0; i < sizeof(g_btns) / sizeof(g_btns[0]); ++i) {
+    for (int i = 0; i < sizeof(g_btns) / sizeof(g_btns[0]); ++i)
+    {
         pBtns[i].loop();
     }
 }
@@ -195,19 +178,21 @@ void button_loop()
 /**
  * Returns the maximum number of characters which can fit on screen from this string.
  */
-int getMaxTextLength(const String& str){
+int getMaxTextLength(const String &str)
+{
     int MAX_HEIGHT = 200;
-    String copy = ""+str;
+    String copy = "" + str;
     int16_t x1, y1;
     uint16_t w, h;
     display.getTextBounds(copy, 0, 0, &x1, &y1, &w, &h);
     int i = 0;
-    while (h > MAX_HEIGHT) {
+    while (h > MAX_HEIGHT)
+    {
         copy[str.length() - i++] = 0;
         display.getTextBounds(copy, 0, 0, &x1, &y1, &w, &h);
     }
     // Now back up to a word boundry
-    while(copy[str.length() - i] != ' ')
+    while (copy[str.length() - i] != ' ')
         i++;
     return str.length() - i;
 }
@@ -219,8 +204,9 @@ void displayText(const String &str, int16_t y, uint8_t alignment)
     uint16_t w, h;
     display.setCursor(x, y);
     display.getTextBounds(str, x, y, &x1, &y1, &w, &h);
-  //  Serial.println("text height: " + String(h));
-    switch (alignment) {
+    //  Serial.println("text height: " + String(h));
+    switch (alignment)
+    {
     case RIGHT_ALIGNMENT:
         display.setCursor(display.width() - w - x1, y);
         break;
@@ -240,7 +226,8 @@ void saveBadgeInfo(Badge_Info_t *info)
 {
     // Open file for writing
     File file = FILESYSTEM.open(BADGE_CONFIG_FILE_NAME, FILE_WRITE);
-    if (!file) {
+    if (!file)
+    {
         Serial.println(F("Failed to create file"));
         return;
     }
@@ -270,26 +257,17 @@ void saveBadgeInfo(Badge_Info_t *info)
     file.close();
 }
 
-void loadDefaultInfo(void)
-{
-    strlcpy(info.company, "Xin Yuan Electronic", sizeof(info.company));
-    strlcpy(info.name, "Lilygo", sizeof(info.name));
-    strlcpy(info.address, "ShenZhen", sizeof(info.address));
-    strlcpy(info.email, "lily@lilygo.cc", sizeof(info.email));
-    strlcpy(info.link, "http://www.lilygo.cn", sizeof(info.link));
-    strlcpy(info.tel, "0755-83380665", sizeof(info.tel));
-    saveBadgeInfo(&info);
-}
-
 bool loadBadgeInfo(Badge_Info_t *info)
 {
-    if (!FILESYSTEM.exists(BADGE_CONFIG_FILE_NAME)) {
+    if (!FILESYSTEM.exists(BADGE_CONFIG_FILE_NAME))
+    {
         Serial.println("load configure fail");
         return false;
     }
 
     File file = FILESYSTEM.open(BADGE_CONFIG_FILE_NAME);
-    if (!file) {
+    if (!file)
+    {
         Serial.println("Open Fial -->");
         return false;
     }
@@ -297,7 +275,8 @@ bool loadBadgeInfo(Badge_Info_t *info)
 #if ARDUINOJSON_VERSION_MAJOR == 5
     StaticJsonBuffer<256> jsonBuffer;
     JsonObject &root = jsonBuffer.parseObject(file);
-    if (!root.success()) {
+    if (!root.success())
+    {
         Serial.println(F("Failed to read file, using default configuration"));
         file.close();
         return false;
@@ -306,13 +285,15 @@ bool loadBadgeInfo(Badge_Info_t *info)
 #elif ARDUINOJSON_VERSION_MAJOR == 6
     StaticJsonDocument<256> root;
     DeserializationError error = deserializeJson(root, file);
-    if (error) {
+    if (error)
+    {
         Serial.println(F("Failed to read file, using default configuration"));
         file.close();
         return false;
     }
 #endif
-    if ((const char *)root["company"] == NULL) {
+    if ((const char *)root["company"] == NULL)
+    {
         return false;
     }
     strlcpy(info->company, root["company"], sizeof(info->company));
@@ -341,10 +322,13 @@ void WebServerStart(void)
 
     sprintf(apName, "TTGO-Badge-%02X:%02X", mac[4], mac[5]);
 
-    if (!WiFi.softAP(apName)) {
+    if (!WiFi.softAP(apName))
+    {
         Serial.println("AP Config failed.");
         return;
-    } else {
+    }
+    else
+    {
         Serial.println("AP Config Success.");
         Serial.print("AP MAC: ");
         Serial.println(WiFi.softAPmacAddress());
@@ -353,7 +337,8 @@ void WebServerStart(void)
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-    while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    while (WiFi.waitForConnectResult() != WL_CONNECTED)
+    {
         Serial.print(".");
         esp_restart();
     }
@@ -362,76 +347,94 @@ void WebServerStart(void)
     Serial.println(WiFi.localIP());
 #endif
 
-    if (MDNS.begin("ttgo")) {
+    if (MDNS.begin("ttgo"))
+    {
         Serial.println("MDNS responder started");
     }
 
     server.serveStatic("/", FILESYSTEM, "/").setDefaultFile("index.html");
 
-    server.on("css/main.css", HTTP_GET, [](AsyncWebServerRequest * request) {
+    server.on("css/main.css", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(FILESYSTEM, "css/main.css", "text/css");
     });
-    server.on("js/jquery.min.js", HTTP_GET, [](AsyncWebServerRequest * request) {
+    server.on("js/jquery.min.js", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(FILESYSTEM, "js/jquery.min.js", "application/javascript");
     });
-    server.on("js/tbdValidate.js", HTTP_GET, [](AsyncWebServerRequest * request) {
+    server.on("js/tbdValidate.js", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(FILESYSTEM, "js/tbdValidate.js", "application/javascript");
     });
-    server.on("/data", HTTP_POST, [](AsyncWebServerRequest * request) {
+    server.on("/data", HTTP_POST, [](AsyncWebServerRequest *request) {
         request->send(200, "text/plain", "");
 
-        for (int i = 0; i < request->params(); i++) {
+        for (int i = 0; i < request->params(); i++)
+        {
             String name = request->getParam(i)->name();
             String params = request->getParam(i)->value();
             Serial.println(name + " : " + params);
-            if (name == "company") {
+            if (name == "company")
+            {
                 strlcpy(info.company, params.c_str(), sizeof(info.company));
-            } else if (name == "name") {
+            }
+            else if (name == "name")
+            {
                 strlcpy(info.name, params.c_str(), sizeof(info.name));
-            } else if (name == "address") {
+            }
+            else if (name == "address")
+            {
                 strlcpy(info.address, params.c_str(), sizeof(info.address));
-            } else if (name == "email") {
+            }
+            else if (name == "email")
+            {
                 strlcpy(info.email, params.c_str(), sizeof(info.email));
-            } else if (name == "link") {
+            }
+            else if (name == "link")
+            {
                 strlcpy(info.link, params.c_str(), sizeof(info.link));
-            } else if (name == "tel") {
+            }
+            else if (name == "tel")
+            {
                 strlcpy(info.tel, params.c_str(), sizeof(info.tel));
             }
         }
         saveBadgeInfo(&info);
     });
 
-    server.onFileUpload([](AsyncWebServerRequest * request, const String & filename, size_t index, uint8_t *data, size_t len, bool final) {
+    server.onFileUpload([](AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final) {
         static File file;
         static int pathIndex = 0;
-        if (!index) {
+        if (!index)
+        {
             Serial.printf("UploadStart: %s\n", filename.c_str());
             file = FILESYSTEM.open(path[pathIndex], FILE_WRITE);
-            if (!file) {
+            if (!file)
+            {
                 Serial.println("Open FAIL");
                 request->send(500, "text/plain", "hander error");
                 return;
             }
         }
-        if (file.write(data, len) != len) {
+        if (file.write(data, len) != len)
+        {
             Serial.println("Write fail");
             request->send(500, "text/plain", "hander error");
             file.close();
             return;
         }
 
-        if (final) {
+        if (final)
+        {
             Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index + len);
             file.close();
             request->send(200, "text/plain", "");
-            if (++pathIndex >= 2) {
+            if (++pathIndex >= 2)
+            {
                 pathIndex = 0;
                 showMianPage();
             }
         }
     });
 
-    server.onNotFound([](AsyncWebServerRequest * request) {
+    server.onNotFound([](AsyncWebServerRequest *request) {
         request->send(404, "text/plain", "Not found");
     });
 
@@ -440,198 +443,11 @@ void WebServerStart(void)
     server.begin();
 }
 
-uint16_t read16(File &f)
-{
-    // BMP data is stored little-endian, same as Arduino.
-    uint16_t result;
-    ((uint8_t *)&result)[0] = f.read(); // LSB
-    ((uint8_t *)&result)[1] = f.read(); // MSB
-    return result;
-}
-
-uint32_t read32(File &f)
-{
-    // BMP data is stored little-endian, same as Arduino.
-    uint32_t result;
-    ((uint8_t *)&result)[0] = f.read(); // LSB
-    ((uint8_t *)&result)[1] = f.read();
-    ((uint8_t *)&result)[2] = f.read();
-    ((uint8_t *)&result)[3] = f.read(); // MSB
-    return result;
-}
-
-void drawBitmap(const char *filename, int16_t x, int16_t y, bool with_color)
-{
-    File file;
-    bool valid = false; // valid format to be handled
-    bool flip = true;   // bitmap is stored bottom-to-top
-    uint32_t startTime = millis();
-    if ((x >= display.width()) || (y >= display.height()))
-        return;
-    Serial.println();
-    Serial.print("Loading image '");
-    Serial.print(filename);
-    Serial.println('\'');
-
-    file = FILESYSTEM.open(filename, FILE_READ);
-    if (!file) {
-        Serial.print("File not found");
-        return;
-    }
-
-    // Parse BMP header
-    if (read16(file) == 0x4D42) {
-        // BMP signature
-        uint32_t fileSize = read32(file);
-        uint32_t creatorBytes = read32(file);
-        uint32_t imageOffset = read32(file); // Start of image data
-        uint32_t headerSize = read32(file);
-        uint32_t width = read32(file);
-        uint32_t height = read32(file);
-        uint16_t planes = read16(file);
-        uint16_t depth = read16(file); // bits per pixel
-        uint32_t format = read32(file);
-        if ((planes == 1) && ((format == 0) || (format == 3))) {
-            // uncompressed is handled, 565 also
-            Serial.print("File size: ");
-            Serial.println(fileSize);
-            Serial.print("Image Offset: ");
-            Serial.println(imageOffset);
-            Serial.print("Header size: ");
-            Serial.println(headerSize);
-            Serial.print("Bit Depth: ");
-            Serial.println(depth);
-            Serial.print("Image size: ");
-            Serial.print(width);
-            Serial.print('x');
-            Serial.println(height);
-            // BMP rows are padded (if needed) to 4-byte boundary
-            uint32_t rowSize = (width * depth / 8 + 3) & ~3;
-            if (depth < 8)
-                rowSize = ((width * depth + 8 - depth) / 8 + 3) & ~3;
-            if (height < 0) {
-                height = -height;
-                flip = false;
-            }
-            uint16_t w = width;
-            uint16_t h = height;
-            if ((x + w - 1) >= display.width())
-                w = display.width() - x;
-            if ((y + h - 1) >= display.height())
-                h = display.height() - y;
-            valid = true;
-            uint8_t bitmask = 0xFF;
-            uint8_t bitshift = 8 - depth;
-            uint16_t red, green, blue;
-            bool whitish, colored;
-            if (depth == 1)
-                with_color = false;
-            if (depth <= 8) {
-                if (depth < 8)
-                    bitmask >>= depth;
-                file.seek(54); //palette is always @ 54
-                for (uint16_t pn = 0; pn < (1 << depth); pn++) {
-                    blue = file.read();
-                    green = file.read();
-                    red = file.read();
-                    file.read();
-                    whitish = with_color ? ((red > 0x80) && (green > 0x80) && (blue > 0x80)) : ((red + green + blue) > 3 * 0x80); // whitish
-                    colored = (red > 0xF0) || ((green > 0xF0) && (blue > 0xF0));                                                  // reddish or yellowish?
-                    if (0 == pn % 8)
-                        mono_palette_buffer[pn / 8] = 0;
-                    mono_palette_buffer[pn / 8] |= whitish << pn % 8;
-                    if (0 == pn % 8)
-                        color_palette_buffer[pn / 8] = 0;
-                    color_palette_buffer[pn / 8] |= colored << pn % 8;
-                }
-            }
-            display.fillScreen(GxEPD_WHITE);
-            uint32_t rowPosition = flip ? imageOffset + (height - h) * rowSize : imageOffset;
-            for (uint16_t row = 0; row < h; row++, rowPosition += rowSize) {
-                // for each line
-                uint32_t in_remain = rowSize;
-                uint32_t in_idx = 0;
-                uint32_t in_bytes = 0;
-                uint8_t in_byte = 0; // for depth <= 8
-                uint8_t in_bits = 0; // for depth <= 8
-                uint16_t color = GxEPD_WHITE;
-                file.seek(rowPosition);
-                for (uint16_t col = 0; col < w; col++) {
-                    // for each pixel
-                    // Time to read more pixel data?
-                    if (in_idx >= in_bytes) {
-                        // ok, exact match for 24bit also (size IS multiple of 3)
-                        in_bytes = file.read(input_buffer, in_remain > sizeof(input_buffer) ? sizeof(input_buffer) : in_remain);
-                        in_remain -= in_bytes;
-                        in_idx = 0;
-                    }
-                    switch (depth) {
-                    case 24:
-                        blue = input_buffer[in_idx++];
-                        green = input_buffer[in_idx++];
-                        red = input_buffer[in_idx++];
-                        whitish = with_color ? ((red > 0x80) && (green > 0x80) && (blue > 0x80)) : ((red + green + blue) > 3 * 0x80); // whitish
-                        colored = (red > 0xF0) || ((green > 0xF0) && (blue > 0xF0));                                                  // reddish or yellowish?
-                        break;
-                    case 16: {
-                        uint8_t lsb = input_buffer[in_idx++];
-                        uint8_t msb = input_buffer[in_idx++];
-                        if (format == 0) {
-                            // 555
-                            blue = (lsb & 0x1F) << 3;
-                            green = ((msb & 0x03) << 6) | ((lsb & 0xE0) >> 2);
-                            red = (msb & 0x7C) << 1;
-                        } else {
-                            // 565
-                            blue = (lsb & 0x1F) << 3;
-                            green = ((msb & 0x07) << 5) | ((lsb & 0xE0) >> 3);
-                            red = (msb & 0xF8);
-                        }
-                        whitish = with_color ? ((red > 0x80) && (green > 0x80) && (blue > 0x80)) : ((red + green + blue) > 3 * 0x80); // whitish
-                        colored = (red > 0xF0) || ((green > 0xF0) && (blue > 0xF0));                                                  // reddish or yellowish?
-                    }
-                    break;
-                    case 1:
-                    case 4:
-                    case 8: {
-                        if (0 == in_bits) {
-                            in_byte = input_buffer[in_idx++];
-                            in_bits = 8;
-                        }
-                        uint16_t pn = (in_byte >> bitshift) & bitmask;
-                        whitish = mono_palette_buffer[pn / 8] & (0x1 << pn % 8);
-                        colored = color_palette_buffer[pn / 8] & (0x1 << pn % 8);
-                        in_byte <<= depth;
-                        in_bits -= depth;
-                    }
-                    break;
-                    }
-                    if (whitish) {
-                        color = GxEPD_WHITE;
-                    } else if (colored && with_color) {
-                        color = GxEPD_RED;
-                    } else {
-                        color = GxEPD_BLACK;
-                    }
-                    uint16_t yrow = y + (flip ? h - row - 1 : row);
-                    display.drawPixel(x + col, yrow, color);
-                } // end pixel
-            }     // end line
-            Serial.print("loaded in ");
-            Serial.print(millis() - startTime);
-            Serial.println(" ms");
-        }
-    }
-    file.close();
-    if (!valid) {
-        Serial.println("bitmap format not handled.");
-    }
-}
-
 void displayInit(void)
 {
     static bool isInit = false;
-    if (isInit) {
+    if (isInit)
+    {
         return;
     }
     isInit = true;
@@ -643,17 +459,6 @@ void displayInit(void)
     display.setTextSize(0);
 }
 
-bool setPowerBoostKeepOn(int en)
-{
-    Wire.beginTransmission(IP5306_ADDR);
-    Wire.write(IP5306_REG_SYS_CTL0);
-    if (en)
-        Wire.write(0x37); // Set bit1: 1 enable 0 disable boost keep on
-    else
-        Wire.write(0x35); // 0x37 is default reg value
-    return Wire.endTransmission() == 0;
-}
-
 String BOOK_FILE = "/test.txt";
 
 void setup()
@@ -661,91 +466,95 @@ void setup()
     Serial.begin(115200);
     delay(500);
 
-#ifdef ENABLE_IP5306
-    Wire.begin(I2C_SDA, I2C_SCL);
-    bool ret = setPowerBoostKeepOn(1);
-    Serial.printf("Power KeepUp %s\n", ret ? "PASS" : "FAIL");
-#endif
-
     SPI.begin(SPI_CLK, SPI_MISO, SPI_MOSI, -1);
-    
+
     button_init();
 
     SPIClass sdSPI(VSPI);
     sdSPI.begin(SDCARD_CLK, SDCARD_MISO, SDCARD_MOSI, SDCARD_SS);
     SPIFFS.begin(true);
     displayInit();
-    if (!SD.begin(SDCARD_SS, sdSPI)) {
+    if (!SD.begin(SDCARD_SS, sdSPI))
+    {
         Serial.println("No SD Card");
-    } else {
+    }
+    else
+    {
         displayText("Copying Books", 100, CENTER_ALIGNMENT);
-        display.updateWindow(0,0,128,250);
+        display.updateWindow(0, 0, 128, 250);
         copyFile(BOOK_FILE);
-    }        
+    }
     file2 = SPIFFS.open(BOOK_FILE);
 
-    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED) {
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_UNDEFINED)
+    {
         currentBookInfo = retriveBookInformation();
         renderPage();
     }
 
     //  WebServerStart();
-
 }
 
-void copyFile(String filepath) {
+void copyFile(String filepath)
+{
 
     File sourceFile = SD.open(filepath);
     File destFile = SPIFFS.open(filepath, FILE_WRITE);
     static uint8_t buf[512];
-    while( sourceFile.read( buf, 512) ) {
-        destFile.write( buf, 512 );
+    while (sourceFile.read(buf, 512))
+    {
+        destFile.write(buf, 512);
     }
     destFile.close();
     sourceFile.close();
 }
 
-
 int getLineHeight(const GFXfont *font = NULL)
 {
-  int height;
-  if(font == NULL)
-  {
-    height = 12;
-  }
-  else
-  {
-    height = (uint8_t)pgm_read_byte(&font->yAdvance);
-  }
-  return height;
+    int height;
+    if (font == NULL)
+    {
+        height = 12;
+    }
+    else
+    {
+        height = (uint8_t)pgm_read_byte(&font->yAdvance);
+    }
+    return height;
 }
 
-
 const boolean displayPageNumber = false;
-void renderStatus() {
-    display.drawFastHLine(0,248-13,SCREEN_WIDTH, GxEPD_BLACK);
+void renderStatus()
+{
+    display.setFont(&FreeSansBold9pt7b);
+    display.drawFastHLine(0, 248 - 13, SCREEN_WIDTH, GxEPD_BLACK);
     float battery_voltage = 6.6f * analogRead(BATTERY_ADC) / 4095; // Voltage divider halfs the voltage so saturation is 6.6
-    displayText(String(battery_voltage)+"v", 248, LEFT_ALIGNMENT);
-    
+    displayText(String(battery_voltage) + "v", 248, LEFT_ALIGNMENT);
+
     String progress = "";
-    if(displayPageNumber){
-        progress = String(1+(currentBookInfo.position/PAGE_SIZE))+":" + String(1+(file2.size()/PAGE_SIZE));
-    } else {
+    if (displayPageNumber)
+    {
+        progress = String(1 + (currentBookInfo.position / PAGE_SIZE)) + ":" + String(1 + (file2.size() / PAGE_SIZE));
+    }
+    else
+    {
         progress = String(int(round(100.0 / file2.size() * currentBookInfo.position))) + "%";
     }
     displayText(progress, 248, RIGHT_ALIGNMENT);
 }
 
-void persistBookInformation(BookInfo& info) {
+void persistBookInformation(BookInfo &info)
+{
     File bookDataFile = SPIFFS.open(BOOK_FILE + ".data", FILE_WRITE);
     bookDataFile.print(String(info.position));
     bookDataFile.close();
 }
 
-BookInfo retriveBookInformation() {
+BookInfo retriveBookInformation()
+{
     File bookDataFile = SPIFFS.open(BOOK_FILE + ".data", FILE_READ);
     BookInfo ret = BookInfo();
-    if(!bookDataFile)
+    if (!bookDataFile)
         return ret;
     ret.position = bookDataFile.parseInt();
     bookDataFile.close();
@@ -756,104 +565,112 @@ BookInfo retriveBookInformation() {
 // set text font prior to calling this
 int getStringLength(String str, int strlength = 0)
 {
-  int16_t x, y;
-  uint16_t w, h;
-  display.setTextWrap(false);
-  display.getTextBounds(str, 0, 0, &x, &y, &w, &h);
-  return(w);  
+    int16_t x, y;
+    uint16_t w, h;
+    display.setTextWrap(false);
+    display.getTextBounds(str, 0, 0, &x, &y, &w, &h);
+    return (w);
 }
- 
+
 // word wrap routine
 // first time send string to wrap
 // 2nd and additional times: use empty string
 // returns substring of wrapped text.
 String wrapWord(const char *str, int linesize)
 {
-  static char buff[1024];
-  int linestart = 0;
-  static int lineend = 0;
-  static int bufflen = 0;
-  if(strlen(str) == 0)
-  {
-    if(lineend == bufflen)
-        return "";
-    // additional line from original string
-    linestart = lineend + 1;
-    lineend = bufflen;
-    // Serial.println("existing string to wrap, starting at position " + String(linestart) + ": " + String(&buff[linestart]));
-  }
-  else
-  {
-    // Serial.println("new string to wrap: " + String(str));
-    memset(buff,0,sizeof(buff));
-    // new string to wrap
-    linestart = 0;
-    strcpy(buff,str);
-    bufflen = lineend = strlen(buff);
-  }
-  uint16_t w = 0;
-  int lastwordpos = linestart;
-  int wordpos = linestart + 1;
-  while(true)
-  {
-    while(buff[wordpos] == ' ' && wordpos < bufflen)
-      wordpos++;
-    while( buff[wordpos] != ' ' /*isAlphaNumeric(buff[wordpos])*/ && wordpos < bufflen)
-      wordpos++;
-    char temp = buff[wordpos];
-    if(wordpos < bufflen) {
-      buff[wordpos] = '\0';     // Insert a null for measuring step
-    }
-    uint16_t lastw = w;
-    w = getStringLength(&buff[linestart]);
-    // Serial.println(w);
-    if(wordpos < bufflen) {
-      buff[wordpos] = temp;      // repair the cut
-    }
-    if(w > linesize * 1.05 && lastw < linesize * 0.85){
-      temp = buff[wordpos]; 
-      buff[wordpos] = 0;
-      lineend = wordpos;
-      String copy = String(&buff[linestart]);
-      int copyLength = copy.length();
-      buff[wordpos] = temp;
-      int i = 0;
-      while(w > linesize){
-        copy[copyLength-i++] = 0;
-        //Serial.println(copy);
-        w = getStringLength(copy);
-      }
-      copy[copyLength-i] = 0; // One more to make room for the -
-      lineend=(wordpos-i-1);
-      int endChar = copy[strlen(&copy[0])-1];
-      Serial.println(endChar);
-      if (endChar !=' ') {
-        return String(&copy[0]) + '-';
-      }
-    w = getStringLength(&buff[linestart]);
-    }
-    if(w > linesize)
+    display.setFont(&DEFALUT_FONT);
+    static char buff[1024];
+    int linestart = 0;
+    static int lineend = 0;
+    static int bufflen = 0;
+    if (strlen(str) == 0)
     {
-      buff[lastwordpos] = '\0';
-      lineend = lastwordpos;
-      return &buff[linestart];
+        if (lineend == bufflen)
+            return "";
+        // additional line from original string
+        linestart = lineend + 1;
+        lineend = bufflen;
+        // Serial.println("existing string to wrap, starting at position " + String(linestart) + ": " + String(&buff[linestart]));
     }
-    else if(wordpos >= bufflen)
+    else
     {
-      // first word too long or end of string, send it anyway
-      buff[wordpos] = '\0';
-      lineend = wordpos;
-      return &buff[linestart];
+        // Serial.println("new string to wrap: " + String(str));
+        memset(buff, 0, sizeof(buff));
+        // new string to wrap
+        linestart = 0;
+        strcpy(buff, str);
+        bufflen = lineend = strlen(buff);
     }
-    lastwordpos = wordpos;
-    wordpos++;
-  }
+    uint16_t w = 0;
+    int lastwordpos = linestart;
+    int wordpos = linestart + 1;
+    while (true)
+    {
+        while (buff[wordpos] == ' ' && wordpos < bufflen)
+            wordpos++;
+        while (buff[wordpos] != ' ' /*isAlphaNumeric(buff[wordpos])*/ && wordpos < bufflen)
+            wordpos++;
+        char temp = buff[wordpos];
+        if (wordpos < bufflen)
+        {
+            buff[wordpos] = '\0'; // Insert a null for measuring step
+        }
+        uint16_t lastw = w;
+        w = getStringLength(&buff[linestart]);
+        // Serial.println(w);
+        if (wordpos < bufflen)
+        {
+            buff[wordpos] = temp; // repair the cut
+        }
+        if (w > linesize * 1.05 && lastw < linesize * 0.85)
+        {
+            temp = buff[wordpos];
+            buff[wordpos] = 0;
+            lineend = wordpos;
+            String copy = String(&buff[linestart]);
+            int copyLength = copy.length();
+            buff[wordpos] = temp;
+            int i = 0;
+            while (w > linesize)
+            {
+                copy[copyLength - i++] = 0;
+                //Serial.println(copy);
+                w = getStringLength(copy);
+            }
+            copy[copyLength - i] = 0; // One more to make room for the -
+            lineend = (wordpos - i - 1);
+            int endChar = copy[strlen(&copy[0]) - 1];
+            Serial.println(endChar);
+            if (endChar != ' ')
+            {
+                return String(&copy[0]) + '-';
+            }
+            w = getStringLength(&buff[linestart]);
+        }
+        if (w > linesize)
+        {
+            buff[lastwordpos] = '\0';
+            lineend = lastwordpos;
+            return &buff[linestart];
+        }
+        else if (wordpos >= bufflen)
+        {
+            // first word too long or end of string, send it anyway
+            buff[wordpos] = '\0';
+            lineend = wordpos;
+            return &buff[linestart];
+        }
+        lastwordpos = wordpos;
+        wordpos++;
+    }
 }
 
-void renderPage() {
+void renderPage()
+{
     file2.seek(currentBookInfo.position);
-    char text[PAGE_SIZE+1] = {0};
-    for(int i=0;i<PAGE_SIZE;i++){
+    char text[PAGE_SIZE + 1] = {0};
+    for (int i = 0; i < PAGE_SIZE; i++)
+    {
         text[i] = file2.read();
     }
     Serial.println(text);
@@ -862,28 +679,30 @@ void renderPage() {
 
     Serial.println("WRAPPING");
     String line = wrapWord(text, 122);
- 
-    int y = 15;
 
+    int y = 15;
 
     display.eraseDisplay(true);
     display.fillScreen(GxEPD_WHITE);
 
-    while((line.length() > 0) && (y==15 || (display.getCursorY() < 220)))
+    while ((line.length() > 0) && (y == 15 || (display.getCursorY() < 220)))
     {
         int lastY = y;
         displayText(line, y, LEFT_ALIGNMENT);
         Serial.println(line);
         line = wrapWord("", 122);
-        if(display.getCursorY() != lastY){
+        if (display.getCursorY() != lastY)
+        {
             y = display.getCursorY();
-        } else {
-            y+=getLineHeight(&DEFALUT_FONT);
+        }
+        else
+        {
+            y += getLineHeight(&DEFALUT_FONT);
         }
     }
-        renderStatus();
+    renderStatus();
 
-    display.updateWindow(0,0,SCREEN_WIDTH,SCREEN_HEIGHT);
+    display.updateWindow(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     currentBookInfo.nextPagePosition = currentBookInfo.position + length;
     persistBookInformation(currentBookInfo);
