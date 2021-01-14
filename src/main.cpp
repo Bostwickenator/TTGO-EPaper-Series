@@ -125,7 +125,7 @@ uint8_t g_btns[] = BUTTONS_MAP;
 File file2;
 BookInfo currentBookInfo = BookInfo();
 
-int PAGE_SIZE = 140;
+int PAGE_SIZE = 200;
 
 void button_handle(uint8_t gpio)
 {
@@ -576,12 +576,13 @@ int getStringLength(String str, int strlength = 0)
 // first time send string to wrap
 // 2nd and additional times: use empty string
 // returns substring of wrapped text.
-String wrapWord(const char *str, int linesize)
+int lineend = 0;
+String wrapWord(const char *str, int linesize, bool allowBreak = true)
 {
     display.setFont(&DEFALUT_FONT);
     static char buff[1024];
     int linestart = 0;
-    static int lineend = 0;
+    // static int lineend = 0;
     static int bufflen = 0;
     if (strlen(str) == 0)
     {
@@ -599,8 +600,11 @@ String wrapWord(const char *str, int linesize)
         // new string to wrap
         linestart = 0;
         strcpy(buff, str);
-        bufflen = lineend = strlen(buff);
+        bufflen = strlen(buff);
+        lineend=-1;
+        return "";
     }
+
     uint16_t w = 0;
     int lastwordpos = linestart;
     int wordpos = linestart + 1;
@@ -608,7 +612,7 @@ String wrapWord(const char *str, int linesize)
     {
         while (buff[wordpos] == ' ' && wordpos < bufflen)
             wordpos++;
-        while (buff[wordpos] != ' ' /*isAlphaNumeric(buff[wordpos])*/ && wordpos < bufflen)
+        while (buff[wordpos] != ' ' && buff[wordpos] != '\n' && wordpos < bufflen)
             wordpos++;
         char temp = buff[wordpos];
         if (wordpos < bufflen)
@@ -622,7 +626,7 @@ String wrapWord(const char *str, int linesize)
         {
             buff[wordpos] = temp; // repair the cut
         }
-        if (w > linesize * 1.05 && lastw < linesize * 0.85)
+        if (allowBreak && w > linesize * 1.01 && lastw < linesize * 0.85)
         {
             temp = buff[wordpos];
             buff[wordpos] = 0;
@@ -640,7 +644,7 @@ String wrapWord(const char *str, int linesize)
             copy[copyLength - i] = 0; // One more to make room for the -
             lineend = (wordpos - i - 1);
             int endChar = copy[strlen(&copy[0]) - 1];
-            Serial.println(endChar);
+            // Serial.println(endChar);
             if (endChar != ' ')
             {
                 return String(&copy[0]) + '-';
@@ -674,23 +678,26 @@ void renderPage()
         text[i] = file2.read();
     }
     Serial.println(text);
-    int length = getMaxTextLength(text);
+    // int length = getMaxTextLength(text);
     // text[length] = 0;
 
-    Serial.println("WRAPPING");
-    String line = wrapWord(text, 122);
 
-    int y = 15;
+
 
     display.eraseDisplay(true);
     display.fillScreen(GxEPD_WHITE);
 
+
+    int y = 15;
+    Serial.println("WRAPPING");
+    wrapWord(text, 122);
+    String line = "-";
     while ((line.length() > 0) && (y == 15 || (display.getCursorY() < 220)))
     {
         int lastY = y;
+        line = wrapWord("", 122);
         displayText(line, y, LEFT_ALIGNMENT);
         Serial.println(line);
-        line = wrapWord("", 122);
         if (display.getCursorY() != lastY)
         {
             y = display.getCursorY();
@@ -704,7 +711,7 @@ void renderPage()
 
     display.updateWindow(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    currentBookInfo.nextPagePosition = currentBookInfo.position + length;
+    currentBookInfo.nextPagePosition = currentBookInfo.position + lineend + 1;
     persistBookInformation(currentBookInfo);
 }
 
