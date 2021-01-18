@@ -545,9 +545,31 @@ void renderStatus()
 
 void persistBookInformation(BookInfo &info)
 {
-    File bookDataFile = SPIFFS.open(BOOK_FILE + ".data", FILE_WRITE);
-    bookDataFile.print(String(info.position));
+    File bookDataFile = SPIFFS.open(BOOK_FILE + ".data", FILE_APPEND);
+    int currentPage = bookDataFile.size();
+    int n = info.position;
+    unsigned char bytes[4];
+    bytes[0] = (n >> 24) & 0xFF;
+    bytes[1] = (n >> 16) & 0xFF;
+    bytes[2] = (n >> 8) & 0xFF;
+    bytes[3] = n & 0xFF;
+    bookDataFile.write(bytes,4);
     bookDataFile.close();
+
+    File page = SPIFFS.open(BOOK_FILE + ".p.data", FILE_WRITE);
+    page.print(String(currentPage));
+    page.close();
+}
+
+void previousPage(){
+    File bookDataFile = SPIFFS.open(BOOK_FILE + ".data", FILE_READ);
+    int pos = bookDataFile.size()-5;
+    bookDataFile.close();
+
+    File page = SPIFFS.open(BOOK_FILE + ".p.data", FILE_WRITE);
+    page.print(String(pos));
+    page.close();
+
 }
 
 BookInfo retriveBookInformation()
@@ -556,7 +578,19 @@ BookInfo retriveBookInformation()
     BookInfo ret = BookInfo();
     if (!bookDataFile)
         return ret;
-    ret.position = bookDataFile.parseInt();
+
+    File page = SPIFFS.open(BOOK_FILE + ".p.data", FILE_READ);
+    bookDataFile.seek(page);
+    page.close();
+
+    char bytes[4];
+    bookDataFile.readBytes(bytes, 4);
+    int n = (bytes[0] << 24) + (bytes[1] << 16) + (bytes[2] << 8) + bytes[3];
+ 
+    if(n> file2.size()-1 || n <0){
+        n=0;
+        }
+    ret.position = n;
     bookDataFile.close();
     return {ret};
 }
